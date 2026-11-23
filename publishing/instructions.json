@@ -1,0 +1,31 @@
+{
+ "vlncol_forest_037": {
+  "paraphrases": [
+   "Head for the red barn that has a grain silo next to it on the south side of the river, and come to a halt roughly 28 m away while facing it.",
+   "Find the red barn beside the grain silo south of the river; stop about 28 m short of it with the camera pointed at it.",
+   "Your target is the red barn with a silo, south of the river: approach it, hold about 28 m from it and face it."
+  ],
+  "short": "Stop about 28 m from the red barn with the silo, facing it.",
+  "source": "written by an LLM (Claude) from the canonical instruction; every one keeps the target and the 28 m stand-off"
+ },
+ "vlncol_forest_073": {
+  "instruction": "The target is on your right. Fly to the log cabin with the blue-grey roof (a garage and a parked car next to it) and stop about 23 m from it, facing it.",
+  "paraphrases": [
+   "Turn to your right and head for the log cabin with a blue-grey roof, the one with a garage and a parked car beside it; come to a halt roughly 23 m away while facing it.",
+   "Look for the blue-grey-roofed log cabin off to the right (garage and parked car next to it); stop about 23 m short of it with the camera pointed at it.",
+   "Your goal is on the right: approach the log cabin with the blue-grey roof, hold about 23 m from it and face it."
+  ],
+  "short": "Stop about 23 m from the log cabin with the blue-grey roof on your right, facing it.",
+  "source": "written by an LLM (Claude); directions are relative to the drone's heading at the start (no compass words); every one keeps the target, its side and the stand-off distance"
+ },
+ "vlncol_forest_087": {
+  "instruction": "The target is on your left. Fly to the red brick two-storey house with the red tile roof (a garage and a parked car next to it) and stop about 20 m from it, facing it.",
+  "paraphrases": [
+   "Turn to your left and head for the two-storey red brick house with a red tile roof, the one with a garage and a parked car beside it; come to a halt roughly 20 m away while facing it.",
+   "Look for the red brick house with the red tile roof off to the left (garage and parked car next to it); stop about 20 m short of it with the camera pointed at it.",
+   "Your goal is on the left: approach the two-storey red brick house, hold about 20 m from it and face it."
+  ],
+  "short": "Stop about 20 m from the red brick house with the red tile roof on your left, facing it.",
+  "source": "written by an LLM (Claude); directions are relative to the drone's heading at the start (no compass words); every one keeps the target, its side and the stand-off distance"
+ }
+}

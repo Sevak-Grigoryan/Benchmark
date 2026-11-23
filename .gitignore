@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+
+# run logs (Slurm + drivers)
+logs/*
+!logs/.gitkeep
+
+# PX4 SITL writes per-instance parameters / logs / dataman next to its build at run time
+environments/common/px4_env/PX4-Autopilot/build/px4_sitl_default/rootfs/*/
+environments/common/px4_env/PX4-Autopilot/build/px4_sitl_default/rootfs/*.bson
+environments/common/px4_env/PX4-Autopilot/build/px4_sitl_default/rootfs/dataman
+
+# Isaac Sim / Kit caches if a run dir is placed inside the repository by mistake
+kit-cache/
+kit_*/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+*.egg-info/
+
+# GPU crash dumps, if an incident folder is placed inside the repository by mistake
+*.nv-gpudmp

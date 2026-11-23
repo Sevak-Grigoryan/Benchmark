@@ -1,0 +1,19 @@
+135f7660 gpu05 Isaac Sim segfault at start-up (rc 139) on both attempts, render worker 357750, 2026-10-23
+b9c5ada4 gpu05 Isaac Sim segfault at start-up (rc 139) on both attempts, render worker 357752, 2026-10-23
+74449004 gpu02 Isaac Sim start-up crash on both attempts, render worker 357854, 2026-10-24
+da4342ff gpu02 Isaac Sim start-up crash on both attempts, render worker 357856, 2026-10-24
+d977eded gpu09 Isaac Sim start-up crash on both attempts, render worker 359727, 2026-10-25
+a782fd40 gpu09 Isaac Sim start-up crash on both attempts, render worker 359778, 2026-10-25
+0824fd9b gpu09 Isaac Sim start-up crash on both attempts, render worker 359770, 2026-10-25
+cf741e00 gpu09 Isaac Sim start-up crash on both attempts, render worker 359777, 2026-10-25
+b51472d9 gpu09 Isaac Sim start-up crash on both attempts, render worker 359403, 2026-10-25
+6c63483e gpu09 Isaac Sim start-up crash on both attempts, render worker 359402, 2026-10-25
+119a10fe gpu02 Isaac Sim start-up crash on both attempts, render worker 361125, 2026-10-25
+04754db1 gpu01 Isaac Sim start-up crash on both attempts, render worker 361122, 2026-10-26
+16b256f2 gpu03 Isaac Sim start-up crash (VK ERROR_DEVICE_LOST) on both attempts, PX4MissionTest 388252, 2026-11-16
+f32d6b60 gpu02 Isaac Sim start-up crash (VK GPU crash) on both attempts, VLNv03-Forest-087 390141, 2026-11-16
+e4616aeb gpu06 2026-11-19 Isaac Sim segfault in SimulationApp start-up twice (job 394581)
+d77d58dc gpu06 2026-11-19 Isaac Sim abort/segfault (rc 134, 139) on both attempts (job 394584)
+f7084427 gpu06 2026-11-19 GPU lost during render (cudaErrorNoDevice), job 394583
+578925d3 gpu07 2026-11-19 Vulkan GPU crash (ERROR_DEVICE_LOST) at Isaac Sim start-up in 58 runs (jobs 394407..394638), see Benchmark_runs/_gpu_incidents
+ec224f55 gpu06 2026-11-19 Vulkan GPU crash (ERROR_DEVICE_LOST) at Isaac Sim start-up in 76 runs, see Benchmark_runs/_gpu_incidents
