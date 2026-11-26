@@ -3,7 +3,7 @@
 Four Easy task types, 25 each (scene idx -> type cycles inspect, orbit, flyover, land):
 
   inspect   fly to a target and stop D = 1..10 m from its surface (3D, to the target's box), facing it
-  orbit     circle a target once (clockwise / counter-clockwise seen from above) about R m from its centre, then stop
+  orbit     circle a target once (clockwise / counter-clockwise seen from above) about R m from its centre, facing it, then stop
   flyover   fly over a target and stop right above it, camera looking down at it
   land      fly to a structure (house / barn / lookout tower / cairn) and land on the ground D = 5..10 m from it
 
@@ -180,6 +180,42 @@ def route_clear(beats, start_xy, yaw_deg, ground, obst, skip_xy=()):
     return True, None
 
 
+# ---- A* transit (opt-in, simulation/astar_route.py) --------------------------------------------------------------------
+# BENCH_ROUTE_PLANNER=astar: the transit legs (start -> target, target -> post-roll pad) are planned with A* around the
+# obstacles instead of one straight line; BENCH_ROUTE_AGL=<m> sets their preferred height above the ground (default: the
+# straight route's own height). Unset (= "direct"): the straight route, exactly as the Forest Easy batch of 2026-11 was made.
+def route_planner():
+    import os
+    return os.environ.get("BENCH_ROUTE_PLANNER", "direct"), os.environ.get("BENCH_ROUTE_AGL")
+
+
+def _astar_transit(pre, ep, post, start_xy, yaw_deg, ground, obst, agl_env):
+    """Replace the first goto of the episode and of the post-roll by A* legs. -> (ep, post) or (None, why)."""
+    import astar_route
+    import pilot
+
+    def legs(frm, b):
+        agl = float(agl_env) if agl_env else b.get("agl", START_AGL_M)
+        goal = (b["xy"][0], b["xy"][1], ground(*b["xy"]) + agl)
+        w = astar_route.plan(obst, ground, frm, goal, agl)
+        return None if w is None else astar_route.legs_to_beats(w, b, b.get("label", "fly"))
+
+    s0 = (start_xy[0], start_xy[1], ground(*start_xy) + START_AGL_M)   # where the pre-roll leaves the drone
+    first = legs(s0, ep[0])
+    if first is None:
+        return None, "A*: no route to the target"
+    ep = first + ep[1:]
+    if post:
+        fr, p = pilot.simulate_offline(pre + ep, ground, start_xy, math.radians(yaw_deg))
+        if not p.done or getattr(p, "failed", False):
+            return None, "A*: offline pilot did not finish the episode"
+        back = legs((fr[-1]["x"], fr[-1]["y"], fr[-1]["z"]), post[0])
+        if back is None:
+            return None, "A*: no route to the post-roll pad"
+        post = back + post[1:]
+    return ep, post
+
+
 def _clear_of(obst, x, y, z, margin):
     return all(math.hypot(x - ox, y - oy) > r + margin or z > top + margin for ox, oy, r, top in obst)
 
@@ -201,20 +237,20 @@ def instructions(typ, side, long, short, rng, D=None, R=None, sense=None, plural
         sh = f"Stop about {D} m from {short} {s}, facing {it}."
     elif typ == "orbit":
         its = "their" if plural else "its"
-        # flying nose-first, a counter-clockwise circle (seen from above) keeps the target on the drone's left, a clockwise
-        # one on its right. Both ways of saying it are used, mixed: the canonical form is picked per episode and the
-        # paraphrases always contain both, so a model learns both.
-        keep = "left" if sense == "counter-clockwise" else "right"
+        # Since 2026-11-24 (the user's decision) the drone circles FACING the target, camera on it the whole way, so the
+        # direction is only said as clockwise / counter-clockwise seen from above ("keeping it on your right" described a
+        # nose-first circle and is no longer true). Two wordings of the direction, picked per episode.
         clock = f"once {sense} (seen from above)"
-        hand = f"once, keeping {it} on your {keep}"
-        a, b = (clock, hand) if rng.random() < 0.5 else (hand, clock)
-        canon = f"The target is {s}. Fly to {long} and circle {it} {a}, about {R} m from {its} centre, then stop."
-        para = [f"{turn}, find {long} and make one full loop around {it} with {it} on your {keep} the whole way, roughly "
-                f"{R} m from {its} centre, then hold position.",
+        alt = f"once in a {sense} direction as seen from above"
+        a, b = (clock, alt) if rng.random() < 0.5 else (alt, clock)
+        canon = (f"The target is {s}. Fly to {long} and circle {it} {a}, facing {it} all the way round, about {R} m from "
+                 f"{its} centre, then stop.")
+        para = [f"{turn}, find {long} and make one full {sense} loop around {it} (viewed from above), keeping {it} in front "
+                f"of the camera the whole way, roughly {R} m from {its} centre, then hold position.",
                 f"Off to the {side} is {short}: go around {it} a single time, {sense} as seen from above, keeping about {R} m "
-                f"from {its} centre, and stop when the circle is complete.",
-                f"Your goal is on the {side}: orbit {short} {b}, at a radius of about {R} m, then halt."]
-        sh = f"Circle {short} {s} {a}, about {R} m from {its} centre, then stop."
+                f"from {its} centre with the camera on {it}, and stop when the circle is complete.",
+                f"Your goal is on the {side}: orbit {short} {b} while looking at {it}, at a radius of about {R} m, then halt."]
+        sh = f"Circle {short} {s} {a}, facing {it}, about {R} m from {its} centre, then stop."
     elif typ == "flyover":
         its = "their" if plural else "its"
         canon = f"The target is {s}. Fly over {long} and stop right above {its} centre, with the camera looking down at {it}."
@@ -325,8 +361,10 @@ def _orbit(rng, lay, g, objs, box, ground, start_xy):
     look = (c[0], c[1], c[2])
     beats = [dict(type="goto", xy=(c[0] + R * math.cos(a0), c[1] + R * math.sin(a0)), agl=START_AGL_M, speed=0.8, radius=3.0,
                   gimbal=CAMERA_AHEAD_DEG, label="fly to the target"),
-             dict(type="orbit", center=look, radius=float(R), z=z, laps=1.0, dir=d, speed=4.0, face_travel=True,
-                  gimbal=CAMERA_AHEAD_DEG, label="circle it once (camera ahead, along the circle)"),
+             # facing the target the whole circle (nose + camera on its centre, sliding sideways); the user's decision of
+             # 2026-11-24 -- the previous nose-first circle (face_travel=True) kept the target out of the image ~94 % of it
+             dict(type="orbit", center=look, radius=float(R), z=z, laps=1.0, dir=d, speed=4.0, face_travel=False,
+                  label="circle it once (facing it, camera on it)"),
              dict(type="hover", s=STOP_HOLD_S, look_at=look, align_first=True, label="face it and stop")]
     return beats, {"radius_m": float(R), "direction": "counter-clockwise" if d > 0 else "clockwise", "orbit_z": z}
 
@@ -499,8 +537,15 @@ def plan(idx, env, attempt=0):
             post, land_pad = _post_roll(P, end)
         else:
             land_pad = None                       # land: the episode ends on the ground, no post-roll
-        beats = pre + ep + post
         skip = {id(o) for o in objs}
+        planner, route_agl = route_planner()
+        if planner == "astar" and not blind:
+            ep2, post2 = _astar_transit(pre, ep, post, P[start], math.degrees(head), ground, _obstacles(lay, skip), route_agl)
+            if ep2 is None:
+                rejected[trial] = post2
+                continue
+            ep, post = ep2, post2
+        beats = pre + ep + post
         ok_route, why = (True, None) if blind else route_clear(beats, P[start], math.degrees(head), ground, _obstacles(lay, skip))
         if not ok_route:
             rejected[trial] = why
@@ -523,6 +568,9 @@ def plan(idx, env, attempt=0):
             "scene": {"environment": "Forest", "scene_mission": f"easy_v2_{idx:03d}", "source_simulation": None,
                       "start_pad": start, "landing_pad_post_roll": None if typ == "land" else land_pad},
         }
+        if planner == "astar":                                      # only then: direct-route goal.json files stay as they were
+            m["bench"]["route_planner"] = {"planner": "astar", "preferred_agl_m": float(route_agl) if route_agl else None,
+                                           "transit_legs": sum(1 for b in ep if b["type"] == "goto" and "(leg " in b.get("label", "")) + 1}
         return m
     raise ValueError(f"easy_v2_{idx:03d} attempt {attempt}: no feasible {typ} task ({len(rejected)} routes blocked, e.g. "
                      f"{next(iter(rejected.values()), None)})")

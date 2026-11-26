@@ -70,7 +70,7 @@ each. The tolerance is **±5 m** for every type.
 | Type | What the agent must do | Example instruction (short form) | Success at STOP |
 |---|---|---|---|
 | **inspect** | stop D m from the target, facing it (D = 1–10 m) | *"Stop about 2 m from the pale blue house on your left, facing it."* | 3D distance to the target box = D ± 5 m, and the target point is in the image with a 10 % margin |
-| **orbit** | circle the target once, R m from its centre, in a given direction | *"Circle the herd on your left once, keeping them on your right, about 21 m from their centre, then stop."* | ≥ 360° swept around the target's centre in the right direction, counting only frames at horizontal distance R ± 5 m |
+| **orbit** | circle the target once, R m from its centre, in a given direction, facing it the whole way | *"Circle the herd on your left once clockwise (seen from above), facing them, about 21 m from their centre, then stop."* | ≥ 360° swept around the target's centre in the right direction, counting only frames at horizontal distance R ± 5 m |
 | **flyover** | stop right above the target, camera looking down | *"Stop right above the centre of the paddock on your left, looking down at it."* | horizontal distance ≤ 5 m, ≥ 2 m above the target's top, the target point in the image with a 10 % margin |
 | **land** | land D m from a structure (house, barn, lookout tower, cairn; D = 5–10 m) | *"Land about 9 m from the lookout tower on your left."* | PX4 reports the drone on the ground (or disarmed) and the 3D distance to the target box = D ± 5 m |
 
@@ -117,6 +117,22 @@ For scene `easy_v2_<idx>` the code:
 
 `route_clear` then flies the beats with an offline pilot model and rejects the plan if any point comes within 3 m of a
 static obstacle (1 m during take-off and landing).
+
+**Route planner (optional A\*).** By default the expert flies a straight line to the target, and a variant with an
+obstacle in the way is rejected. With `BENCH_ROUTE_PLANNER=astar`, the transit legs (start → target, target → post-roll
+pad) are planned by `simulation/astar_route.py` instead, so the expert flies around trees, rocks and buildings:
+
+1. **Occupancy grid.** Built directly from the known obstacles (no point cloud needed). Each 2 m cell stores its lowest
+   safe height: ground + 5 m, or the top + 4.5 m of any obstacle within its radius + 4.5 m.
+2. **A\*.** Searches the 3D voxels (2 m cells × 2 m layers). Each extra metre of climb and each metre above the preferred
+   height costs extra, so going around is preferred over going over.
+3. **Simplification.** Keeps only the turning points (line of sight, checked at the lower of each leg's two end heights)
+   and merges legs shorter than 8 m.
+4. **Beats.** Each leg becomes a `goto` beat with an explicit height, flown by `pilot.py` through PX4 with the camera ahead.
+
+`BENCH_ROUTE_AGL=<m>` sets the preferred height above the ground. Without it, each leg keeps the straight route's own
+height (25 m, or 20 m for land). `route_clear`, the coverage gate, the camera-ahead rule and PhysX still check every A\*
+route. When the variable is unset, the plans are byte-identical to the Forest Easy batch.
 
 ### 2. Fly the expert: `simulation/flight_runner.py` (one H100 GPU)
 
@@ -249,6 +265,9 @@ These rules are fixed and are enforced by code.
 - While the expert moves, its camera looks along the direction of travel, 12° down, so the target has to be found
   with a forward view.
 - `simulation/flight_quality.py` rejects any expert flight that breaks this rule.
+- **Orbit** (since 2026-11-24): after finding the target with the forward view, the expert circles it **facing it**,
+  nose and camera on the target, sliding sideways. The target stays in the image for about 98 % of the circle. While
+  circling, a frame with the target in the image passes the camera rule.
 
 ---
 
@@ -295,6 +314,7 @@ Benchmark_codebase/
 │                                 obstacle_sample/ (static obstacles for the offline tools)
 ├── simulation/
 │   ├── benchmark_tasks.py        the four task types: targets, numbers, instructions, expert beats, route check
+│   ├── astar_route.py            optional A* transit planner (BENCH_ROUTE_PLANNER=astar): occupancy grid, A*, legs
 │   ├── expert_flight_plan.py     the expert plan of a run
 │   ├── flight_runner.py          one flight: scene + X500 + PX4, contact monitor, telemetry, clearance
 │   ├── flight_quality.py         the camera-ahead rule
@@ -328,6 +348,7 @@ Benchmark_codebase/
 ├── tests/
 │   ├── test_contact_monitor.py   the collision rule, 10 cases
 │   ├── test_task_types.py        the four success rules, 20 cases
+│   ├── test_astar_route.py       the A* planner: self-test, every scene planned at a low height, clearance, camera rule
 │   └── collision_test_scenarios.py  real collision test flights (wall, tree, ceiling, …)
 ├── docs/                         collision method, official references, metrics maths and task description
 │                                 (the last two in Armenian), images/
@@ -427,6 +448,7 @@ The `collisions.json` next to the telemetry is found automatically.
 ```bash
 python3 tests/test_contact_monitor.py                                    # 10 PASS
 python3 tests/test_task_types.py                                         # 20 PASS
+python3 tests/test_astar_route.py 101 200 10                             # A* at 10 m: PASS
 python3 evaluation/evaluator_selftest.py $BENCH_DATA/Easy/Forest/Simulation_1
 ```
 

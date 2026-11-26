@@ -44,8 +44,10 @@ def episode_camera(m):
         if a["beat"] in labels:
             dt = c["t"] - a["t"]
             tele.append({"frame": 0, "velocity": {"vx": (c["x"] - a["x"]) / dt, "vy": (c["y"] - a["y"]) / dt},
-                         "camera": {"yaw_deg": math.degrees(a["yaw"]), "pitch_deg": a["gimbal"]}})
-    return fq.camera_ahead(tele)
+                         "camera": {"x": a["x"], "y": a["y"], "z": a["z"], "yaw_deg": math.degrees(a["yaw"]),
+                                    "pitch_deg": a["gimbal"]}})
+    look = m["bench"]["target"]["point_xyz"] if m["bench"]["task_type"] == "orbit" else None
+    return fq.camera_ahead(tele, look)
 
 
 def main():

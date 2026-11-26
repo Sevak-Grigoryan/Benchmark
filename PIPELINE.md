@@ -45,8 +45,9 @@ Three rules hold for every episode (the user's principles, enforced by code, not
 | Input | File | Content |
 |---|---|---|
 | Scene | `environments/Forest/easy_v2.py` | scene `easy_v2_<idx>`: the valley plus a props layout (houses, barns, cars, herds) |
-| Task (scenes 101..200) | `simulation/benchmark_tasks.py` | one task per scene, type by `(idx - 101) % 4`: **inspect** (stop D = 1..10 m from the target, facing it), **orbit** (circle it once, R m from its centre; wording mixes "clockwise seen from above" and "keeping it on your right"), **flyover** (stop above its centre, camera down), **land** (land D = 5..10 m from a house / barn / lookout tower / cairn). Tolerance 5 m. Target, numbers, start pad, instruction + 3 paraphrases + short form, and the expert's beats. |
+| Task (scenes 101..200) | `simulation/benchmark_tasks.py` | one task per scene, type by `(idx - 101) % 4`: **inspect** (stop D = 1..10 m from the target, facing it), **orbit** (circle it once, R m from its centre, facing it: nose and camera on the target the whole circle, since 2026-11-24; direction said as "clockwise / counter-clockwise seen from above"), **flyover** (stop above its centre, camera down), **land** (land D = 5..10 m from a house / barn / lookout tower / cairn). Tolerance 5 m. Target, numbers, start pad, instruction + 3 paraphrases + short form, and the expert's beats. |
 | Route check | `simulation/benchmark_tasks.route_clear` | flies the beats with the offline pilot model; every point keeps 3 m (1 m on take-off / landing) from every static obstacle (`collision/collision_shapes.static_obstacles`: trees, rocks, cliffs, landmarks) and prop |
+| Route planner (optional) | `simulation/astar_route.py` | only with `BENCH_ROUTE_PLANNER=astar` (`BENCH_ROUTE_AGL=<m>`: preferred height): the transit legs start → target and target → post-roll pad are planned with A* on an occupancy grid built from the same obstacles (2 m cells, 2 m layers, 4.5 m keep-out), simplified to a few `goto` beats and then checked by the route check like any plan. Unset: the straight route, plans identical to the Forest Easy batch |
 | Instruction (old scenes 1..100) | `publishing/instructions.json` | instruction, 3 paraphrases and a short form per run |
 
 ## Stage 2. Fly the expert (GPU)
@@ -128,6 +129,7 @@ results/           (filled in stage 5)
 | `tools/check_flights.py <run dirs>` | flown flights against every static obstacle and the camera-ahead rule (safety net next to PhysX) |
 | `jobs/audit_coverage.sbatch <scene> <mission> <out>` | GPU, no flight: the coverage gate report and the static obstacle list (`world_obstacles.json`, copied to `environments/Forest/scene/obstacle_sample/` for the offline tools) |
 | `tests/test_task_types.py`, `tests/test_contact_monitor.py` | offline tests of the four success rules and the contact rules |
+| `tests/test_astar_route.py [first last agl]` | offline test of the A* planner: self-test, every scene planned at a low height (default 10 m), legs, detour, clearance, camera-ahead rule |
 | `tools/offline_pxr_stub/` | stand-in for `pxr` so the offline tools can import the scene code; never used by a GPU job |
 | `tools/gpu_incident.py summary` | failures per GPU and per node from `$GPU_INCIDENTS/INDEX.tsv` (see GPU incidents below) |
 
